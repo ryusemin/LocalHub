@@ -8,6 +8,12 @@
 | <img src="https://github.com/qkrwns1478.png" width="60"><br>박준식 | [@qkrwns1478](https://github.com/qkrwns1478) | BE |
 | <img src="https://github.com/ongdikk.png" width="60"><br>이동익 | [@ongdikk](https://github.com/ongdikk) | FE |
 
+## 실행 방법
+
+```bash
+uvicorn main:app --reload
+```
+
 ---
 
 ## 문서
