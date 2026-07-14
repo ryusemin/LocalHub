@@ -32,19 +32,19 @@ def root():
     return "Welcome to LocalHub! This is the main page of the LocalHub API."
 
 # 게시글 목록 조회
-@app.get("/api/posts", response_model=List[PostResponse])
+@app.get("/api/posts", response_model=List[PostResponse], name="게시글 목록 조회")
 def read_posts(page: int = 1, limit: int = 10, db: Session = Depends(get_db)):
     skip = (page - 1) * limit
     posts = db.query(Post).offset(skip).limit(limit).all()
     return posts
 
 # 게시글 상세 조회
-@app.get("/api/posts/{post_id}", response_model=PostResponse)
+@app.get("/api/posts/{post_id}", response_model=PostResponse, name="게시글 상세 조회")
 def read_post(post_id: int, db: Session = Depends(get_db)):
     return get_post(post_id, db)
 
 # 게시글 작성
-@app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED, name="게시글 작성")
 def create_post(post: PostCreate, db: Session = Depends(get_db)):
     db_post = Post(title=post.title, content=post.content, password=post.password)
     db.add(db_post)
@@ -53,7 +53,7 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
     return db_post
 
 # 게시글 수정
-@app.put("/api/posts/{post_id}", response_model=PostResponse)
+@app.put("/api/posts/{post_id}", response_model=PostResponse, name="게시글 수정")
 def update_post(post_id: int, post_data: PostUpdate, db: Session = Depends(get_db)):
     db_post = get_post(post_id, db)
     verify_post_password(db_post, post_data.password)
@@ -65,7 +65,7 @@ def update_post(post_id: int, post_data: PostUpdate, db: Session = Depends(get_d
     return db_post
 
 # 게시글 삭제
-@app.delete("/api/posts/{post_id}")
+@app.delete("/api/posts/{post_id}", name="게시글 삭제")
 def delete_post(post_id: int, post_data: PostDelete, db: Session = Depends(get_db)):
     db_post = get_post(post_id, db)
     verify_post_password(db_post, post_data.password)
