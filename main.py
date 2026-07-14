@@ -1,17 +1,18 @@
 import json
 import os
-import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 from openai import OpenAI
+
+# 💡 폴더명(chatBot)을 앞에 붙여서 경로를 정확히 지정해 줍니다.
+from chatBot.database import search_tour_db
+from chatBot.schemas import ChatRequest, ChatResponse
 
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-DB_PATH = os.getenv("DB_PATH", "ggb_tour_data.db")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 if not OPENAI_API_KEY:
@@ -19,76 +20,6 @@ if not OPENAI_API_KEY:
 
 app = FastAPI(title="LocalHub Tour Chat API")
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
-
-
-class ChatRequest(BaseModel):
-    message: str
-    history: Optional[List[Dict[str, Any]]] = None
-
-
-class ChatResponse(BaseModel):
-    reply: str
-    tool_response: Optional[List[Dict[str, Any]]] = None
-
-
-def search_tour_db(category: Optional[str], keyword: str, limit: int = 5) -> List[Dict[str, Any]]:
-    if not keyword:
-        return []
-
-    query = """
-        SELECT
-            t.title,
-            t.addr1,
-            t.addr2,
-            t.tel,
-            t.first_image,
-            t.first_image2,
-            t.mapx,
-            t.mapy,
-            c.content_type
-        FROM tour_items AS t
-        LEFT JOIN content_types AS c
-            ON t.content_type_id = c.content_type_id
-        WHERE (
-            t.title LIKE ?
-            OR t.addr1 LIKE ?
-            OR t.addr2 LIKE ?
-            OR t.cat1 LIKE ?
-            OR t.cat2 LIKE ?
-            OR t.cat3 LIKE ?
-        )
-    """
-    params = [f"%{keyword}%"] * 6
-
-    if category:
-        query += "\n AND c.content_type LIKE ?"
-        params.append(f"%{category}%")
-
-    query += "\n ORDER BY t.title COLLATE NOCASE LIMIT ?"
-    params.append(limit)
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute(query, params).fetchall()
-    finally:
-        conn.close()
-
-    results = []
-    for row in rows:
-        results.append({
-            "title": row["title"],
-            "category": row["content_type"],
-            "addr1": row["addr1"],
-            "addr2": row["addr2"],
-            "tel": row["tel"],
-            "first_image": row["first_image"],
-            "first_image2": row["first_image2"],
-            "mapx": row["mapx"],
-            "mapy": row["mapy"],
-        })
-
-    return results
 
 
 def _get_message(choice: Any) -> Dict[str, Any]:
@@ -172,6 +103,7 @@ def chat(request: ChatRequest) -> ChatResponse:
     if not keyword:
         raise HTTPException(status_code=400, detail="keyword 값이 필요합니다.")
 
+    # 💡 분리된 database.py의 함수를 여기서 가져다 씁니다.
     results = search_tour_db(category=category, keyword=keyword, limit=5)
     function_result = json.dumps({"results": results}, ensure_ascii=False)
 
