@@ -4,9 +4,13 @@
 # 2. 가상환경 폴더 제외 (팀원들끼리 파이썬 라이브러리 충돌 방지)
 venv/
 .venv/
-env/
 
 # 3. VS Code 설정 및 기타 잡다한 시스템 파일 제외
 .vscode/
 .DS_Store
 Thumbs.db
+__pycache__/
+
+# 4. 환경 변수 파일 제외 (보안상 중요한 정보가 들어있을 수 있음)
+env/
+.env

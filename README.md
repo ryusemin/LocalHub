@@ -8,6 +8,16 @@
 | <img src="https://github.com/qkrwns1478.png" width="60"><br>박준식 | [@qkrwns1478](https://github.com/qkrwns1478) | BE |
 | <img src="https://github.com/ongdikk.png" width="60"><br>이동익 | [@ongdikk](https://github.com/ongdikk) | FE |
 
+## 실행 방법
+
+```bash
+# 가상환경 실행
+venv/Scripts/activate.bat
+
+# main.py 실행
+uvicorn main:app --reload
+```
+
 ---
 
 ## 문서
@@ -15,7 +25,8 @@
 | 문서 | 설명 |
 | :--- | :--- |
 | [API 명세](./docs/API.md) | 전체 API 엔드포인트 및 요청/응답 형식 |
-| [ERD 명세](./docs/ERD.md) | DB 및 개체-관계 다이어그램 |
+| [DB 명세](./docs/DB.md) | DB 테이블 구조 |
+| [ERD 명세](./docs/ERD.md) | 개체-관계 다이어그램 |
 
 ---
 
