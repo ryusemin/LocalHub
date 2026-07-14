@@ -41,10 +41,7 @@ def read_posts(page: int = 1, limit: int = 10, db: Session = Depends(get_db)):
 # 게시글 상세 조회
 @app.get("/api/posts/{post_id}", response_model=PostResponse)
 def read_post(post_id: int, db: Session = Depends(get_db)):
-    post = db.query(Post).filter(Post.id == post_id).first()
-    if not post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="게시글을 찾을 수 없습니다.")
-    return post
+    return get_post(post_id, db)
 
 # 게시글 작성
 @app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
@@ -58,15 +55,9 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
 # 게시글 수정
 @app.put("/api/posts/{post_id}", response_model=PostResponse)
 def update_post(post_id: int, post_data: PostUpdate, db: Session = Depends(get_db)):
-    db_post = db.query(Post).filter(Post.id == post_id).first()
-    
-    if not db_post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="게시글을 찾을 수 없습니다.")
-        
-    # 권한 확인: 평문 비밀번호 일치 여부 검증
-    if db_post.password != post_data.password:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="비밀번호가 일치하지 않습니다.")
-        
+    db_post = get_post(post_id, db)
+    verify_post_password(db_post, post_data.password)
+
     db_post.title = post_data.title
     db_post.content = post_data.content
     db.commit()
@@ -76,15 +67,21 @@ def update_post(post_id: int, post_data: PostUpdate, db: Session = Depends(get_d
 # 게시글 삭제
 @app.delete("/api/posts/{post_id}")
 def delete_post(post_id: int, post_data: PostDelete, db: Session = Depends(get_db)):
-    db_post = db.query(Post).filter(Post.id == post_id).first()
-    
-    if not db_post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="게시글을 찾을 수 없습니다.")
-        
-    # 권한 확인: 평문 비밀번호 일치 여부 검증
-    if db_post.password != post_data.password:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="비밀번호가 일치하지 않습니다.")
-        
+    db_post = get_post(post_id, db)
+    verify_post_password(db_post, post_data.password)
+
     db.delete(db_post)
     db.commit()
     return {"message": "삭제되었습니다."}
+
+# 게시글 조회 헬퍼 함수
+def get_post(post_id: int, db: Session):
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="게시글을 찾을 수 없습니다.")
+    return post
+
+# 게시글 비밀번호 검증 헬퍼 함수
+def verify_post_password(post: Post, password: str):
+    if post.password != password:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="비밀번호가 일치하지 않습니다.")
