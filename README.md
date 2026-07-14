@@ -25,7 +25,8 @@ uvicorn main:app --reload
 | 문서 | 설명 |
 | :--- | :--- |
 | [API 명세](./docs/API.md) | 전체 API 엔드포인트 및 요청/응답 형식 |
-| [ERD 명세](./docs/ERD.md) | DB 및 개체-관계 다이어그램 |
+| [DB 명세](./docs/DB.md) | DB 테이블 구조 |
+| [ERD 명세](./docs/ERD.md) | 개체-관계 다이어그램 |
 
 ---
 
