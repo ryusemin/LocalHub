@@ -11,6 +11,10 @@
 ## 실행 방법
 
 ```bash
+# 가상환경 실행
+venv/Scripts/activate.bat
+
+# main.py 실행
 uvicorn main:app --reload
 ```
 
