@@ -47,4 +47,4 @@
 
 | 기능 | HTTP Method | Endpoint (URI) | 파라미터 및 요청 바디 (Request) | 응답 데이터 (Response) |
 | :--- | :---: | :--- | :--- | :--- |
-| **초기 데이터 DB 저장**<br>*(관리자용)* | `POST` | `/api/admin/load-data` | **[Body] JSON**<br>TourAPI 4.0 원본 스키마 구조 수신 | `{"message": "데이터가 성공적으로 저장되었습니다.", "inserted_count": 150}` |
+| **데이터셋 적재** | `POST` | `/api/admin/load-data` | **[Body] JSON**<br>`file`: JSON 파일<br>`admin_password`: 관리자 비밀번호 | `{"message": "데이터가 성공적으로 저장되었습니다.", "inserted_count": 150}` |

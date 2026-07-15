@@ -23,7 +23,7 @@ from routers.weather import weather
 from routers.admin import admin
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 if not OPENAI_API_KEY:

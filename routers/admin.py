@@ -1,19 +1,30 @@
 import sqlite3
 import json
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from os import getenv
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from dotenv import load_dotenv
+
+load_dotenv()
+
+ADMIN_PASSWORD = getenv("ADMIN_PASSWORD", "password") # 기본값은 "password"로 설정, 실제 운영 환경에서는 반드시 변경 필요
 
 admin = APIRouter(prefix="/api/admin", tags=["Admin"])
 
+# TourAPI 4.0 원본 스키마 구조의 JSON 파일을 업로드 받아 DB에 저장합니다.
 @admin.post("/load-data")
-async def load_data(file: UploadFile = File(...)):
-    """
-    TourAPI 4.0 원본 스키마 구조의 JSON 파일을 업로드 받아 DB에 저장합니다.
-    """
-    # 1. 파일 확장자 검사
+async def load_data(
+    file: UploadFile = File(...),
+    admin_password: str = Form(...) # 폼 데이터로 비밀번호를 받습니다.
+):
+    # 1. 관리자 비밀번호 검증
+    if admin_password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="관리자 비밀번호가 올바르지 않습니다.")
+
+    # 2. 파일 확장자 검사
     if not file.filename.endswith(".json"):
         raise HTTPException(status_code=400, detail="JSON 파일만 업로드할 수 있습니다.")
 
-    # 2. 파일 내용 읽기 및 파싱
+    # 3. 파일 내용 읽기 및 파싱
     try:
         contents = await file.read()
         payload = json.loads(contents)
@@ -26,7 +37,7 @@ async def load_data(file: UploadFile = File(...)):
     conn = None
     inserted_count = 0
 
-    # 3. DB 적재 로직 (make_db.py 기반)
+    # 4. DB 적재 로직
     try:
         conn = sqlite3.connect(db_name)
         cursor = conn.cursor()
@@ -65,7 +76,7 @@ async def load_data(file: UploadFile = File(...)):
         );
         """)
         
-        # 상위 카테고리 정보 삽입 (payload가 딕셔너리 형태이므로 ['key'] 방식으로 접근)
+        # 상위 카테고리 정보 삽입
         cursor.execute("""
             INSERT OR IGNORE INTO content_types (content_type_id, region, content_type)
             VALUES (?, ?, ?)
@@ -109,7 +120,6 @@ async def load_data(file: UploadFile = File(...)):
         if conn:
             conn.close()
 
-    # 명세서에 지정된 응답 포맷 반환
     return {
         "message": f"'{file.filename}' 파일의 데이터가 성공적으로 저장되었습니다.",
         "inserted_count": inserted_count
