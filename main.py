@@ -1,16 +1,25 @@
 import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from openai import OpenAI
 
-# 💡 폴더명(chatBot)을 앞에 붙여서 경로를 정확히 지정해 줍니다.
+# 💡 모델, 스키마, 설정 파일 임포트
+from models import Base, Post
+from schemas import PostCreate, PostUpdate, PostDelete, PostResponse
+from settings import Settings
+
+# 💡 chatBot 폴더 내부의 DB 조회 함수를 안전하게 임포트
 from chatBot.database import search_tour_db
 from chatBot.schemas import ChatRequest, ChatResponse
 
+# 환경 변수 로드
 load_dotenv()
+settings = Settings()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -18,8 +27,24 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY가 설정되어 있지 않습니다. .env 또는 환경 변수를 확인해 주세요.")
 
-app = FastAPI(title="LocalHub Tour Chat API")
+# --- DB 설정 ---
+SQLALCHEMY_DATABASE_URL = settings.database_url
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base.metadata.create_all(bind=engine)
+
+# --- FastAPI 앱 및 OpenAI 클라이언트 단일 초기화 ---
+app = FastAPI(title="LocalHub API")
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+
+# DB 세션 의존성 주입
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def _get_message(choice: Any) -> Dict[str, Any]:
@@ -30,12 +55,66 @@ def _get_message(choice: Any) -> Dict[str, Any]:
     return {}
 
 
+# --- API Endpoints ---
+
 @app.get("/")
-def root() -> Dict[str, str]:
-    return {"message": "LocalHub Tour Chat API is running."}
+def root():
+    return "Welcome to LocalHub! This is the main page of the LocalHub API."
 
 
-@app.post("/api/chat", response_model=ChatResponse)
+# --- 📌 [도메인 1] 익명 커뮤니티 게시판 API ---
+
+# 게시글 목록 조회
+@app.get("/api/posts", response_model=List[PostResponse], name="게시글 목록 조회")
+def read_posts(page: int = 1, limit: int = 10, db: Session = Depends(get_db)):
+    skip = (page - 1) * limit
+    posts = db.query(Post).offset(skip).limit(limit).all()
+    return posts
+
+
+# 게시글 상세 조회
+@app.get("/api/posts/{post_id}", response_model=PostResponse, name="게시글 상세 조회")
+def read_post(post_id: int, db: Session = Depends(get_db)):
+    return get_post(post_id, db)
+
+
+# 게시글 작성
+@app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED, name="게시글 작성")
+def create_post(post: PostCreate, db: Session = Depends(get_db)):
+    db_post = Post(title=post.title, content=post.content, password=post.password)
+    db.add(db_post)
+    db.commit()
+    db.refresh(db_post)
+    return db_post
+
+
+# 게시글 수정
+@app.put("/api/posts/{post_id}", response_model=PostResponse, name="게시글 수정")
+def update_post(post_id: int, post_data: PostUpdate, db: Session = Depends(get_db)):
+    db_post = get_post(post_id, db)
+    verify_post_password(db_post, post_data.password)
+
+    db_post.title = post_data.title
+    db_post.content = post_data.content
+    db.commit()
+    db.refresh(db_post)
+    return db_post
+
+
+# 게시글 삭제
+@app.delete("/api/posts/{post_id}", name="게시글 삭제")
+def delete_post(post_id: int, post_data: PostDelete, db: Session = Depends(get_db)):
+    db_post = get_post(post_id, db)
+    verify_post_password(db_post, post_data.password)
+
+    db.delete(db_post)
+    db.commit()
+    return {"message": "삭제되었습니다."}
+
+
+# --- 📌 [도메인 2] AI 지역 정보 챗봇 API ---
+
+@app.post("/api/chat", response_model=ChatResponse, name="AI 지역 정보 질의응답 챗봇")
 def chat(request: ChatRequest) -> ChatResponse:
     messages = [
         {
@@ -111,7 +190,7 @@ def chat(request: ChatRequest) -> ChatResponse:
     if not keyword:
         raise HTTPException(status_code=400, detail="keyword 값이 필요합니다.")
 
-    # 💡 분리된 database.py의 함수를 여기서 가져다 씁니다.
+    # 💡 chatBot 폴더의 모듈에서 분리한 함수를 매핑 에러 없이 원활하게 실행
     results = search_tour_db(category=category, keyword=keyword, limit=5)
     function_result = json.dumps({"results": results}, ensure_ascii=False)
 
@@ -132,3 +211,19 @@ def chat(request: ChatRequest) -> ChatResponse:
     reply = final_message.get("content", "DB에서 결과를 찾았지만 답변을 생성하지 못했습니다.")
 
     return ChatResponse(reply=reply, tool_response=results)
+
+
+# --- 🛠️ 내부 헬퍼 함수 정의 단 ---
+
+# 게시글 조회 헬퍼 함수
+def get_post(post_id: int, db: Session):
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="게시글을 찾을 수 없습니다.")
+    return post
+
+
+# 게시글 비밀번호 검증 헬퍼 함수
+def verify_post_password(post: Post, password: str):
+    if post.password != password:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="비밀번호가 일치하지 않습니다.")

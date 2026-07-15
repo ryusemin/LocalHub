@@ -11,8 +11,14 @@
 ## 실행 방법
 
 ```bash
-# 가상환경 실행
+# 가상환경 실행 (Bash)
+source venv/Scripts/activate
+
+# 가상환경 실행 (CMD)
 venv/Scripts/activate.bat
+
+# 필수 의존성 설치
+pip install -r requirements.txt
 
 # main.py 실행
 uvicorn main:app --reload
