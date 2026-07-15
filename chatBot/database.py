@@ -6,10 +6,16 @@ from dotenv import load_dotenv
 load_dotenv()
 DB_PATH = os.getenv("DB_PATH", "ggb_tour_data.db")
 
-def search_tour_db(category: Optional[str], keyword: str, limit: int = 5) -> List[Dict[str, Any]]:
+def search_tour_db(
+    category: Optional[str], 
+    keyword: str, 
+    region: Optional[str] = None,  # 💡 [변경] 상위 행정구역(지역) 필터 인자 추가
+    limit: int = 5
+) -> List[Dict[str, Any]]:
     if not keyword:
         return []
 
+    # 기본 검색 쿼리 (키워드 기반 검색)
     query = """
         SELECT
             t.title,
@@ -34,6 +40,11 @@ def search_tour_db(category: Optional[str], keyword: str, limit: int = 5) -> Lis
         )
     """
     params = [f"%{keyword}%"] * 6
+
+    # 💡 [핵심 추가] AI가 '구미', '대구' 같은 상위 지역명을 확실히 짚었다면 주소에서 한 번 더 걸러줌
+    if region:
+        query += "\n AND (t.addr1 LIKE ? OR t.addr2 LIKE ?)"
+        params.extend([f"%{region}%", f"%{region}%"])
 
     if category:
         query += "\n AND c.content_type LIKE ?"
