@@ -3,14 +3,14 @@ import os
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from openai import OpenAI
 
 # 💡 모델, 스키마, 설정 파일 임포트
-from models import Base, Post
-from schemas import PostCreate, PostUpdate, PostDelete, PostResponse
+from models import Base, Post, PostImage, Tag, Like, Bookmark
+from schemas import PostCreate, PostUpdate, PostDelete, PostResponse, PostListResponse, PostDetailResponse
 from settings import Settings
 
 # 💡 chatBot 폴더 내부의 DB 조회 함수를 안전하게 임포트
@@ -28,8 +28,8 @@ if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY가 설정되어 있지 않습니다. .env 또는 환경 변수를 확인해 주세요.")
 
 # --- DB 설정 ---
-SQLALCHEMY_DATABASE_URL = settings.database_url
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+LOCALHUB_DATABASE_URL = settings.database_url
+engine = create_engine(LOCALHUB_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
 
@@ -61,47 +61,75 @@ def _get_message(choice: Any) -> Dict[str, Any]:
 def root():
     return "Welcome to LocalHub! This is the main page of the LocalHub API."
 
-
 # --- 📌 [도메인 1] 익명 커뮤니티 게시판 API ---
 
-# 게시글 목록 조회
-@app.get("/api/posts", response_model=List[PostResponse], name="게시글 목록 조회")
-def read_posts(page: int = 1, limit: int = 10, db: Session = Depends(get_db)):
+@app.get("/api/posts", response_model=List[PostListResponse], name="게시글 목록 조회")
+def read_posts(
+    page: int = 1, 
+    limit: int = 10, 
+    keyword: Optional[str] = None, 
+    tag: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    query = db.query(Post)
+    
+    if keyword:
+        query = query.filter(Post.title.contains(keyword) | Post.content.contains(keyword))
+    if tag:
+        query = query.filter(Post.tags.any(Tag.name == tag))
+        
     skip = (page - 1) * limit
-    posts = db.query(Post).offset(skip).limit(limit).all()
-    return posts
+    posts = query.offset(skip).limit(limit).all()
+    
+    return [
+        {
+            "id": p.id,
+            "title": p.title,
+            "views": p.views,
+            "likes": len(p.likes),
+            "tags": [t.name for t in p.tags],
+            "created_at": p.created_at
+        } for p in posts
+    ]
 
-
-# 게시글 상세 조회
-@app.get("/api/posts/{post_id}", response_model=PostResponse, name="게시글 상세 조회")
+@app.get("/api/posts/{post_id}", response_model=PostDetailResponse, name="게시글 상세 조회")
 def read_post(post_id: int, db: Session = Depends(get_db)):
-    return get_post(post_id, db)
+    post = get_post(post_id, db)
+    
+    post.views += 1
+    db.commit()
+    db.refresh(post)
+    
+    return format_post_detail(post)
 
-
-# 게시글 작성
-@app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED, name="게시글 작성")
+@app.post("/api/posts", status_code=status.HTTP_201_CREATED, name="게시글 작성")
 def create_post(post: PostCreate, db: Session = Depends(get_db)):
     db_post = Post(title=post.title, content=post.content, password=post.password)
+    
+    db_post.tags = process_tags(db, post.tags)
+    db_post.images = [PostImage(image_url=url) for url in post.image_urls]
+    
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
-    return db_post
+    return {"post_id": db_post.id}
 
-
-# 게시글 수정
-@app.put("/api/posts/{post_id}", response_model=PostResponse, name="게시글 수정")
+@app.put("/api/posts/{post_id}", response_model=PostDetailResponse, name="게시글 수정")
 def update_post(post_id: int, post_data: PostUpdate, db: Session = Depends(get_db)):
     db_post = get_post(post_id, db)
     verify_post_password(db_post, post_data.password)
 
     db_post.title = post_data.title
     db_post.content = post_data.content
+    db_post.tags = process_tags(db, post_data.tags)
+    
+    db.query(PostImage).filter(PostImage.post_id == post_id).delete()
+    db_post.images = [PostImage(image_url=url) for url in post_data.image_urls]
+
     db.commit()
     db.refresh(db_post)
-    return db_post
+    return format_post_detail(db_post)
 
-
-# 게시글 삭제
 @app.delete("/api/posts/{post_id}", name="게시글 삭제")
 def delete_post(post_id: int, post_data: PostDelete, db: Session = Depends(get_db)):
     db_post = get_post(post_id, db)
@@ -111,6 +139,39 @@ def delete_post(post_id: int, post_data: PostDelete, db: Session = Depends(get_d
     db.commit()
     return {"message": "삭제되었습니다."}
 
+@app.post("/api/posts/{post_id}/like", name="좋아요 토글")
+def toggle_like(post_id: int, request: Request, db: Session = Depends(get_db)):
+    post = get_post(post_id, db)
+    client_id = request.client.host
+    
+    existing_like = db.query(Like).filter(Like.post_id == post_id, Like.client_id == client_id).first()
+    
+    if existing_like:
+        db.delete(existing_like)
+    else:
+        new_like = Like(post_id=post_id, client_id=client_id)
+        db.add(new_like)
+        
+    db.commit()
+    return {"likes": len(post.likes)}
+
+@app.post("/api/posts/{post_id}/bookmark", name="북마크 토글")
+def toggle_bookmark(post_id: int, request: Request, db: Session = Depends(get_db)):
+    get_post(post_id, db) # 게시물 존재 여부 확인
+    client_id = request.client.host
+    
+    existing_bookmark = db.query(Bookmark).filter(Bookmark.post_id == post_id, Bookmark.client_id == client_id).first()
+    
+    if existing_bookmark:
+        db.delete(existing_bookmark)
+        bookmarked = False
+    else:
+        new_bookmark = Bookmark(post_id=post_id, client_id=client_id)
+        db.add(new_bookmark)
+        bookmarked = True
+        
+    db.commit()
+    return {"bookmarked": bookmarked}
 
 # --- 📌 [도메인 2] AI 지역 정보 챗봇 API ---
 
@@ -227,3 +288,29 @@ def get_post(post_id: int, db: Session):
 def verify_post_password(post: Post, password: str):
     if post.password != password:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="비밀번호가 일치하지 않습니다.")
+
+# 게시글 태그 처리 헬퍼 함수
+def process_tags(db: Session, tag_names: List[str]):
+    tags = []
+    for name in tag_names:
+        tag = db.query(Tag).filter(Tag.name == name).first()
+        if not tag:
+            tag = Tag(name=name)
+            db.add(tag)
+        tags.append(tag)
+    return tags
+
+# 게시글 상세 응답 포맷팅 헬퍼 함수
+def format_post_detail(post: Post):
+    return {
+        "id": post.id,
+        "title": post.title,
+        "content": post.content,
+        "views": post.views,
+        "likes": len(post.likes),
+        "bookmarks": len(post.bookmarks),
+        "tags": [t.name for t in post.tags],
+        "image_urls": [i.image_url for i in post.images],
+        "created_at": post.created_at,
+        "updated_at": post.updated_at
+    }
