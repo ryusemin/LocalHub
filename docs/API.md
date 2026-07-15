@@ -39,12 +39,4 @@
 
 | 기능 | HTTP Method | Endpoint (URI) | 파라미터 및 요청 바디 (Request) | 응답 데이터 (Response) |
 | :--- | :---: | :--- | :--- | :--- |
-| **날씨 정보 조회** | `GET` | `/api/weather` | **[Query]**<br>`region`: 지역명 (기본: "구미") | `{ "temp": 24.5, "condition": "맑음", "travel_suitability": "여행하기 좋은 날씨입니다." }` |
-
----
-
-#### 5. 관리자 (Admin) API - 데이터 초기화
-
-| 기능 | HTTP Method | Endpoint (URI) | 파라미터 및 요청 바디 (Request) | 응답 데이터 (Response) |
-| :--- | :---: | :--- | :--- | :--- |
-| **초기 데이터 DB 저장**<br>*(관리자용)* | `POST` | `/api/admin/load-data` | **[Body] JSON**<br>TourAPI 4.0 원본 스키마 구조 수신 | `{"message": "데이터가 성공적으로 저장되었습니다.", "inserted_count": 150}` |
+| **날씨 정보 조회** | `GET` | `/api/weather` | **[Query]**<br>`region`: 지역명 | `{ "region": "구미", "temperature": 30.08, "feels_like": 34.75, "humidity": 68, "weather_description": "온흐림", "is_suitable_for_travel": true, "status_message": "..." }` |

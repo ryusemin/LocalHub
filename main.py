@@ -18,6 +18,7 @@ settings = Settings()
 
 # 라우터 임포트
 from routers.posts import posts
+from routers.weather import weather
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -28,6 +29,7 @@ if not OPENAI_API_KEY:
 # --- FastAPI 앱 및 OpenAI 클라이언트 단일 초기화 ---
 app = FastAPI(title="LocalHub API")
 app.include_router(posts)
+app.include_router(weather)
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
