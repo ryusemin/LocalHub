@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 
 # 💡 설정 파일 임포트
@@ -19,17 +20,31 @@ settings = Settings()
 # 라우터 임포트
 from routers.posts import posts
 from routers.weather import weather
+from routers.admin import admin
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY가 설정되어 있지 않습니다. .env 또는 환경 변수를 확인해 주세요.")
 
 # --- FastAPI 앱 및 OpenAI 클라이언트 단일 초기화 ---
 app = FastAPI(title="LocalHub API")
+
+# CORS 설정 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_URL],             # 프론트엔드 주소 허용
+    allow_credentials=True,                   # 쿠키/인증 정보 포함 허용
+    allow_methods=["*"],                      # 모든 HTTP 메서드(GET, POST 등) 허용
+    allow_headers=["*"],                      # 모든 HTTP 헤더 허용
+)
+
+# 라우터 등록
 app.include_router(posts)
 app.include_router(weather)
+app.include_router(admin)
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
