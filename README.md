@@ -4,9 +4,16 @@
 
 | 이름 | GitHub | 담당 역할 |
 |---|---|---|
-| <img src="https://github.com/ryusemin.png" width="60"><br>류세민 | [@ryusemin](https://github.com/ryusemin) | BE |
-| <img src="https://github.com/qkrwns1478.png" width="60"><br>박준식 | [@qkrwns1478](https://github.com/qkrwns1478) | BE |
+| <img src="https://github.com/ryusemin.png" width="60"><br>류세민 | [@ryusemin](https://github.com/ryusemin) | BE<br>(챗봇/배포) |
+| <img src="https://github.com/qkrwns1478.png" width="60"><br>박준식 | [@qkrwns1478](https://github.com/qkrwns1478) | BE<br>(게시판/날씨) |
 | <img src="https://github.com/ongdikk.png" width="60"><br>이동익 | [@ongdikk](https://github.com/ongdikk) | FE |
+
+## 배포 URL
+
+- 프론트엔드: https://local-hub-gumi4-6.netlify.app/
+- 백엔드: https://localhub-yejf.onrender.com/
+
+---
 
 ## 실행 방법
 
@@ -31,8 +38,9 @@ uvicorn main:app --reload
 | 문서 | 설명 |
 | :--- | :--- |
 | [API 명세](./docs/API.md) | 전체 API 엔드포인트 및 요청/응답 형식 |
-| [DB 명세](./docs/DB.md) | DB 테이블 구조 |
-| [ERD 명세](./docs/ERD.md) | 개체-관계 다이어그램 |
+| [DB 명세](./docs/DB.md) | 지역권 데이터셋 DB 설계 및 구조 |
+| [ERD 명세](./docs/ERD.md) | DB 테이블 구조 및 ERD |
+| [챗봇 명세](./docs/CHATBOT.md) | 챗봇 시나리오 명세 |
 
 ---
 
