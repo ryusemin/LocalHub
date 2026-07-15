@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func 
 from sqlalchemy.ext.declarative import declarative_base
@@ -56,3 +56,26 @@ class Bookmark(Base):
     client_id = Column(String(255)) # 클라이언트 식별자
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # 북마크 생성일
     post = relationship("Post", back_populates="bookmarks") # 게시글과의 관계 설정
+
+
+# 💡 챗봇의 tool_response 구조와 100% 싱크를 맞춘 가게 정보 테이블
+# models.py 파일에서 TourSpot 클래스 부분만 아래와 같이 수정합니다.
+
+# models.py 파일 내의 TourSpot 모델
+class TourSpot(Base):
+    __tablename__ = "tour_items"
+    
+    content_id = Column(String(50), primary_key=True, index=True) 
+    
+    # 💡 [핵심] 변수명과 DB 컬럼명을 모두 'title'로 일치시킵니다!
+    title = Column(String(255), nullable=False, index=True) 
+    
+    # 주소 컬럼도 실제 DB명이 addr1이라면 아래처럼 name="addr1"을 주거나 변수명을 addr1로 맞춥니다.
+    address = Column(String(500), name="addr1", nullable=True)          
+    
+    category = Column(String(100), name="cat1", nullable=True) 
+    tel = Column(String(50), nullable=True)
+    first_image = Column(String(500), nullable=True)
+    first_image2 = Column(String(500), nullable=True)
+    mapx = Column(Float, nullable=True)
+    mapy = Column(Float, nullable=True)
