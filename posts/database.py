@@ -8,9 +8,9 @@ from os import getenv
 from models import Base, Post, Tag
 
 load_dotenv()
-DATABASE_URL = getenv("DATABASE_URL")
+POSTS_DB_URL = getenv("POSTS_DB_URL")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(POSTS_DB_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
 
