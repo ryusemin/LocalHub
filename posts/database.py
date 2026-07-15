@@ -19,7 +19,7 @@ Base.metadata.create_all(bind=engine)
 
 # [B] 관광/맛집 정보 전용 DB (A DB - ggb_tour_data.db)
 # ⚠️ ggb_tour_data.db 파일의 실제 상대/절대 경로에 맞게 적어주세요.
-TOUR_DB_URL = getenv("POSTS_DB_URL")
+TOUR_DB_URL = getenv("TOUR_DB_URL")
 tour_engine = create_engine(TOUR_DB_URL, connect_args={"check_same_thread": False})
 TourSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=tour_engine)
 
