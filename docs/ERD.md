@@ -41,15 +41,6 @@ erDiagram
         datetime updated_at "수정 일시"
     }
 
-    %% 댓글 (요구사항에 명시적으로 없으나 일반적인 커뮤니티 구조를 위해 추가 가능, 필요시 제외)
-    COMMENT {
-        integer id PK "댓글 고유 ID"
-        integer post_id FK "게시글 ID"
-        text content "댓글 내용"
-        string password "댓글 수정/삭제용 비밀번호"
-        datetime created_at "작성 일시"
-    }
-
     %% ==========================================
     %% 3. 커뮤니티 추가 기능 (Likes, Bookmarks, Tags, Images)
     %% ==========================================
@@ -94,7 +85,6 @@ erDiagram
     CATEGORY ||--o{ LOCATION : "분류"
     
     %% 커뮤니티 관계
-    POST ||--o{ COMMENT : "가진다"
     POST ||--o{ LIKE : "받는다"
     POST ||--o{ BOOKMARK : "저장된다"
     POST ||--o{ POST_IMAGE : "포함한다"
