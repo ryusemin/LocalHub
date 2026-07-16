@@ -4,6 +4,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 
 # 💡 설정 파일 임포트
@@ -21,6 +22,7 @@ settings = Settings()
 from routers.posts import posts
 from routers.weather import weather
 from routers.admin import admin
+from routers.uploads import upload
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
@@ -41,10 +43,13 @@ app.add_middleware(
     allow_headers=["*"],                                    # 모든 HTTP 헤더 허용
 )
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # 라우터 등록
 app.include_router(posts)
 app.include_router(weather)
 app.include_router(admin)
+app.include_router(upload)
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
