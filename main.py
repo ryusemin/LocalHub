@@ -35,10 +35,10 @@ app = FastAPI(title="LocalHub API")
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],             # 프론트엔드 주소 허용
-    allow_credentials=True,                   # 쿠키/인증 정보 포함 허용
-    allow_methods=["*"],                      # 모든 HTTP 메서드(GET, POST 등) 허용
-    allow_headers=["*"],                      # 모든 HTTP 헤더 허용
+    allow_origins=[FRONTEND_URL, "http://localhost:5173"],  # 프론트엔드 주소 허용
+    allow_credentials=True,                                 # 쿠키/인증 정보 포함 허용
+    allow_methods=["*"],                                    # 모든 HTTP 메서드(GET, POST 등) 허용
+    allow_headers=["*"],                                    # 모든 HTTP 헤더 허용
 )
 
 # 라우터 등록
