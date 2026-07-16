@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from posts.database import get_db, get_post, verify_post_password, process_tags, format_post_detail
+from posts.database import get_db, get_post, verify_post_password, process_tags, format_post_detail, extract_stores_from_text, get_tour_db
 from posts.schemas import PostCreate, PostUpdate, PostDelete, PostListResponse, PostDetailResponse
 from models import Post, PostImage, Tag, Like, Bookmark
 
@@ -50,14 +50,25 @@ def read_posts(
     ]
 
 @posts.get("/{post_id}", response_model=PostDetailResponse, name="게시글 상세 조회")
-def read_post(post_id: int, db: Session = Depends(get_db)):
+def read_post(
+    post_id: int, 
+    db: Session = Depends(get_db),               # 👈 기존 게시판 DB (posts.db)
+    tour_db: Session = Depends(get_tour_db)      # 👈 💡 [추가] 맛집 DB (ggb_tour_data.db)
+):
     post = get_post(post_id, db)
     
     post.views += 1
     db.commit()
     db.refresh(post)
+
+    # 1. 기존 포맷팅 함수로 기본 딕셔너리 정보 빌드 (posts.db 사용)
+    post_detail = format_post_detail(post)
     
-    return format_post_detail(post)
+    # 2. 💡 [수정] 본문 매칭 추출할 때 맛집 전용 DB 세션(tour_db)을 넘겨줍니다!
+    matched_stores = extract_stores_from_text(tour_db, post.content)
+    post_detail["matched_stores"] = matched_stores
+    
+    return post_detail
 
 @posts.put("/{post_id}", response_model=PostDetailResponse, name="게시글 수정")
 def update_post(post_id: int, post_data: PostUpdate, db: Session = Depends(get_db)):

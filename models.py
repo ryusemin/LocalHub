@@ -1,9 +1,11 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func 
 from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+# 💡 [핵심 해결책] Base를 두 개로 명확히 나눕니다.
+Base = declarative_base()      # 게시글용 Base (posts.db에 자동 생성될 대상)
+TourBase = declarative_base()  # 맛집용 Base (이미 데이터가 존재하므로 posts.db에 자동 생성되면 안 됨!)
 
 # 태그 N:M 관계 연결 테이블
 post_tag_association = Table(
@@ -14,45 +16,60 @@ post_tag_association = Table(
 
 class Post(Base):
     __tablename__ = "posts"
-    id = Column(Integer, primary_key=True, index=True) # 게시글 ID
-    title = Column(String(255), nullable=False) # 게시글 제목
-    content = Column(Text, nullable=False) # 게시글 내용
-    password = Column(String(50), nullable=False) # 게시글 비밀번호 (수정/삭제 시 검증용)
-    views = Column(Integer, default=0) # 조회수
-    created_at = Column(DateTime(timezone=True), server_default=func.now()) # 생성일
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now()) # 수정일
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    password = Column(String(50), nullable=False)
+    views = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # 관계 설정 (Cascade 적용)
-    images = relationship("PostImage", back_populates="post", cascade="all, delete-orphan") # 게시글 이미지
-    tags = relationship("Tag", secondary=post_tag_association, back_populates="posts") # 게시글 태그
-    likes = relationship("Like", back_populates="post", cascade="all, delete-orphan") # 게시글 좋아요
-    bookmarks = relationship("Bookmark", back_populates="post", cascade="all, delete-orphan") # 게시글 북마크
+    images = relationship("PostImage", back_populates="post", cascade="all, delete-orphan")
+    tags = relationship("Tag", secondary=post_tag_association, back_populates="posts")
+    likes = relationship("Like", back_populates="post", cascade="all, delete-orphan")
+    bookmarks = relationship("Bookmark", back_populates="post", cascade="all, delete-orphan")
 
 class PostImage(Base):
     __tablename__ = "post_images"
-    id = Column(Integer, primary_key=True, index=True) # 게시글 이미지 ID
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE")) # 게시글 ID (외래키)
-    image_url = Column(String(500), nullable=False) # 이미지 URL
-    post = relationship("Post", back_populates="images") # 게시글과의 관계 설정
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"))
+    image_url = Column(String(500), nullable=False)
+    post = relationship("Post", back_populates="images")
 
 class Tag(Base):
     __tablename__ = "tags"
-    id = Column(Integer, primary_key=True, index=True) # 태그 ID
-    name = Column(String(50), unique=True, index=True, nullable=False) # 태그 이름
-    posts = relationship("Post", secondary=post_tag_association, back_populates="tags") # 태그와 게시글의 관계 설정
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, index=True, nullable=False)
+    posts = relationship("Post", secondary=post_tag_association, back_populates="tags")
 
 class Like(Base):
     __tablename__ = "likes"
-    id = Column(Integer, primary_key=True, index=True) # 좋아요 ID
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE")) # 게시글 ID (외래키)
-    client_id = Column(String(255)) # 클라이언트 식별자
-    created_at = Column(DateTime(timezone=True), server_default=func.now()) # 좋아요 생성일
-    post = relationship("Post", back_populates="likes") # 게시글과의 관계 설정
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"))
+    client_id = Column(String(255))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    post = relationship("Post", back_populates="likes")
 
 class Bookmark(Base):
     __tablename__ = "bookmarks"
-    id = Column(Integer, primary_key=True, index=True) # 북마크 ID
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE")) # 게시글 ID (외래키)
-    client_id = Column(String(255)) # 클라이언트 식별자
-    created_at = Column(DateTime(timezone=True), server_default=func.now()) # 북마크 생성일
-    post = relationship("Post", back_populates="bookmarks") # 게시글과의 관계 설정
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"))
+    client_id = Column(String(255))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    post = relationship("Post", back_populates="bookmarks")
+
+
+# 💡 [핵심 해결책] TourSpot은 Base가 아닌 'TourBase'를 상속받습니다.
+# 이렇게 하면 Base.metadata.create_all(bind=engine)를 실행해도 posts.db에 절대로 자동 생성되지 않습니다!
+class TourSpot(TourBase):
+    __tablename__ = "tour_items"
+    
+    content_id = Column(String(50), primary_key=True, index=True) 
+    title = Column(String(255), nullable=False, index=True) 
+    address = Column(String(500), name="addr1", nullable=True)          
+    category = Column(String(100), name="cat1", nullable=True) 
+    tel = Column(String(50), nullable=True)
+    first_image = Column(String(500), nullable=True)
+    first_image2 = Column(String(500), nullable=True)
+    mapx = Column(Float, nullable=True)
+    mapy = Column(Float, nullable=True)
